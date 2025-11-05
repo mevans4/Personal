@@ -1,0 +1,10 @@
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/uninstall.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/lidar_tree_detector_uninstall.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/lidar_tree_detector_node.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/test.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/edit_cache.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/rebuild_cache.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/list_install_components.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/install.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/install/local.dir
+/home/student/41068_ws/src/41068RS12025-Group18/lidar-tree-detector/build/CMakeFiles/install/strip.dir
