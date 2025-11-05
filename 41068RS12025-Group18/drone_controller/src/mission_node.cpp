@@ -168,10 +168,11 @@ private:
         publish_status("Status: RETURNING HOME");
         NavigateToPose::Goal home_pose_;
         home_pose_.pose.header.frame_id = "map";
-        home_pose_.pose.pose.position.x = -21.529921570879463;
-        home_pose_.pose.pose.position.y = -0.8135906984216432;
-        home_pose_.pose.pose.orientation.z = 0.17897474707207528;
-        home_pose_.pose.pose.orientation.w = 0.9838536679356776;
+        // Home base position (matches drone spawn location from launch file)
+        home_pose_.pose.pose.position.x = -2.0;
+        home_pose_.pose.pose.position.y = -12.0;
+        home_pose_.pose.pose.orientation.z = 0.7071;  // 90 degrees (facing north)
+        home_pose_.pose.pose.orientation.w = 0.7071;
 
         auto send_goal_options = rclcpp_action::Client<NavigateToPose>::SendGoalOptions();
 
@@ -223,36 +224,75 @@ private:
         publish_status("Status: FLYING MISSION");
         NavigateThroughPoses::Goal goal;
 
-        geometry_msgs::msg::PoseStamped pose1, pose2, pose3;
         running_ = true;
 
+        // Plantation Survey Mission
+        // Trees are arranged in 3 rows (X = 0, -4, 4) with 6 trees each (Y = -10, -6, -2, 2, 6, 10)
+        // Mission pattern: Start -> Row 1 down -> Row 2 up -> Row 3 down -> Home
+
+        std::vector<geometry_msgs::msg::PoseStamped> all_poses;
+
+        // Waypoint 1: Start of Row 1 (X=0, before first tree at Y=-10)
+        geometry_msgs::msg::PoseStamped pose1;
         pose1.header.frame_id = "map";
-        pose1.pose.position.x = 0.9557;
-        pose1.pose.position.y = 7.5768;
-        pose1.pose.orientation.z = 0.17897474707207528;
-        pose1.pose.orientation.w = 0.9838536679356776;
+        pose1.pose.position.x = 0.0;
+        pose1.pose.position.y = -12.0;
+        pose1.pose.orientation.z = 0.0;
+        pose1.pose.orientation.w = 1.0;
+        all_poses.push_back(pose1);
 
+        // Waypoint 2: End of Row 1 (X=0, after last tree at Y=10)
+        geometry_msgs::msg::PoseStamped pose2;
         pose2.header.frame_id = "map";
-        pose2.pose.position.x = 2.3621;
-        pose2.pose.position.y = 3.8324;
-        pose2.pose.orientation.z = 0.9838536679356776;
-        pose2.pose.orientation.w = -0.17897474707207522;
+        pose2.pose.position.x = 0.0;
+        pose2.pose.position.y = 12.0;
+        pose2.pose.orientation.z = 0.0;
+        pose2.pose.orientation.w = 1.0;
+        all_poses.push_back(pose2);
 
+        // Waypoint 3: Start of Row 2 (X=-4, at Y=12 to fly back down)
+        geometry_msgs::msg::PoseStamped pose3;
         pose3.header.frame_id = "map";
-        pose3.pose.position.x = -20.121241879882;
-        pose3.pose.position.y = -4.557335017706;
-        pose3.pose.orientation.z = 0.9838536679356776;
-        pose3.pose.orientation.w = -0.17897474707207522;  
+        pose3.pose.position.x = -4.0;
+        pose3.pose.position.y = 12.0;
+        pose3.pose.orientation.z = 1.0;
+        pose3.pose.orientation.w = 0.0;
+        all_poses.push_back(pose3);
 
-        std::vector<geometry_msgs::msg::PoseStamped> all_poses = {pose1, pose2, pose3};
+        // Waypoint 4: End of Row 2 (X=-4, at Y=-12)
+        geometry_msgs::msg::PoseStamped pose4;
+        pose4.header.frame_id = "map";
+        pose4.pose.position.x = -4.0;
+        pose4.pose.position.y = -12.0;
+        pose4.pose.orientation.z = 1.0;
+        pose4.pose.orientation.w = 0.0;
+        all_poses.push_back(pose4);
+
+        // Waypoint 5: Start of Row 3 (X=4, at Y=-12 to fly up)
+        geometry_msgs::msg::PoseStamped pose5;
+        pose5.header.frame_id = "map";
+        pose5.pose.position.x = 4.0;
+        pose5.pose.position.y = -12.0;
+        pose5.pose.orientation.z = 0.0;
+        pose5.pose.orientation.w = 1.0;
+        all_poses.push_back(pose5);
+
+        // Waypoint 6: End of Row 3 (X=4, at Y=12)
+        geometry_msgs::msg::PoseStamped pose6;
+        pose6.header.frame_id = "map";
+        pose6.pose.position.x = 4.0;
+        pose6.pose.position.y = 12.0;
+        pose6.pose.orientation.z = 0.0;
+        pose6.pose.orientation.w = 1.0;
+        all_poses.push_back(pose6);
 
         // Add poses starting from the starting_waypoint
-        for (int i = starting_waypoint; i < all_poses.size(); ++i) {
+        for (size_t i = starting_waypoint; i < all_poses.size(); ++i) {
             goal.poses.push_back(all_poses[i]);
         }
 
         number_of_waypoints_total = all_poses.size();
-        RCLCPP_INFO(this->get_logger(), "Sending goal with %zu waypoints, starting from waypoint %d", 
+        RCLCPP_INFO(this->get_logger(), "Sending plantation survey mission with %zu waypoints, starting from waypoint %d",
                     goal.poses.size(), starting_waypoint);
 
         auto send_goal_options = rclcpp_action::Client<NavigateThroughPoses>::SendGoalOptions();

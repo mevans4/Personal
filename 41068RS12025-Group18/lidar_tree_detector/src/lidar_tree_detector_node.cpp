@@ -5,6 +5,7 @@
 #include <vector>
 #include <mutex>
 #include <cmath>
+#include <ctime>
 #include <limits>
 #include <sstream>
 #include <algorithm>
@@ -185,14 +186,111 @@ private:
         return { sx / n, sy / n };
     }
 
-    // compute width as max distance between any two points in cluster
+    // RANSAC circle fitting to compute accurate tree diameter
     double cluster_width(const std::vector<std::pair<double,double>>& pts) const
     {
-        double maxd = 0.0;
-        for (size_t i = 0; i < pts.size(); ++i)
-            for (size_t j = i + 1; j < pts.size(); ++j)
-                maxd = std::max(maxd, std::hypot(pts[i].first - pts[j].first, pts[i].second - pts[j].second));
-        return maxd;
+        if (pts.size() < 3) {
+            // Fallback: use max distance for very small clusters
+            double maxd = 0.0;
+            for (size_t i = 0; i < pts.size(); ++i)
+                for (size_t j = i + 1; j < pts.size(); ++j)
+                    maxd = std::max(maxd, std::hypot(pts[i].first - pts[j].first, pts[i].second - pts[j].second));
+            return maxd;
+        }
+
+        // RANSAC parameters
+        const int max_iterations = 100;
+        const double inlier_threshold = 0.05; // 5cm tolerance
+        int best_inliers = 0;
+        double best_radius = 0.0;
+
+        std::srand(std::time(nullptr));
+
+        for (int iter = 0; iter < max_iterations; ++iter) {
+            // Randomly sample 3 points
+            std::vector<size_t> indices(pts.size());
+            for (size_t i = 0; i < pts.size(); ++i) indices[i] = i;
+
+            // Simple random shuffle for 3 samples
+            for (int i = 0; i < 3; ++i) {
+                size_t j = i + std::rand() % (pts.size() - i);
+                std::swap(indices[i], indices[j]);
+            }
+
+            const auto& p1 = pts[indices[0]];
+            const auto& p2 = pts[indices[1]];
+            const auto& p3 = pts[indices[2]];
+
+            // Fit circle through 3 points
+            double cx, cy, r;
+            if (!fit_circle_3points(p1, p2, p3, cx, cy, r)) {
+                continue; // Collinear points, skip
+            }
+
+            // Count inliers
+            int inliers = 0;
+            for (const auto& pt : pts) {
+                double dist = std::abs(std::hypot(pt.first - cx, pt.second - cy) - r);
+                if (dist <= inlier_threshold) {
+                    inliers++;
+                }
+            }
+
+            // Update best model
+            if (inliers > best_inliers) {
+                best_inliers = inliers;
+                best_radius = r;
+            }
+        }
+
+        // Return diameter (2 * radius)
+        // If RANSAC failed to find good fit, fallback to max distance
+        if (best_radius > 0.0 && best_inliers >= 3) {
+            return 2.0 * best_radius;
+        } else {
+            // Fallback: use max distance
+            double maxd = 0.0;
+            for (size_t i = 0; i < pts.size(); ++i)
+                for (size_t j = i + 1; j < pts.size(); ++j)
+                    maxd = std::max(maxd, std::hypot(pts[i].first - pts[j].first, pts[i].second - pts[j].second));
+            return maxd;
+        }
+    }
+
+    // Fit circle through 3 points
+    bool fit_circle_3points(const std::pair<double,double>& p1,
+                           const std::pair<double,double>& p2,
+                           const std::pair<double,double>& p3,
+                           double& cx, double& cy, double& r) const
+    {
+        double x1 = p1.first, y1 = p1.second;
+        double x2 = p2.first, y2 = p2.second;
+        double x3 = p3.first, y3 = p3.second;
+
+        // Check for collinearity
+        double det = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
+        if (std::abs(det) < 1e-6) {
+            return false; // Points are collinear
+        }
+
+        // Calculate circle center using determinant method
+        double a = x1 - x2;
+        double b = y1 - y2;
+        double c = x1 - x3;
+        double d = y1 - y3;
+        double e = ((x1*x1 - x2*x2) + (y1*y1 - y2*y2)) / 2.0;
+        double f = ((x1*x1 - x3*x3) + (y1*y1 - y3*y3)) / 2.0;
+
+        cx = (e*d - b*f) / det;
+        cy = (a*f - e*c) / det;
+        r = std::hypot(x1 - cx, y1 - cy);
+
+        // Sanity check: radius should be reasonable for a tree trunk (5cm to 2m)
+        if (r < 0.025 || r > 1.0) {
+            return false;
+        }
+
+        return true;
     }
 
         void publish_known_tree_widths()
